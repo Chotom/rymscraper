@@ -1,25 +1,53 @@
+import os
 import logging
 import time
+from pathlib import Path
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+webdriver_name: Optional[str] = os.getenv('WEBDRIVER_NAME')
+driver_exec_path: Optional[str] = os.getenv('DRIVER_EXEC_PATH')
 
-class RymBrowser(webdriver.Firefox):
+if webdriver_name == 'edge':
+    from selenium.webdriver.edge.options import Options
+    from selenium.webdriver.edge.service import Service
+    from selenium.webdriver import Edge as WebdriverBrowser
+elif webdriver_name == 'chrome':
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver import Chrome as WebdriverBrowser
+elif webdriver_name == 'safari':
+    from selenium.webdriver.safari.options import Options
+    from selenium.webdriver.safari.service import Service
+    from selenium.webdriver import Safari as WebdriverBrowser
+else:
+    # Firefox as default
+    from selenium.webdriver.firefox.options import Options
+    from selenium.webdriver.firefox.service import Service
+    from selenium.webdriver import Firefox as WebdriverBrowser
+
+
+class RymBrowser(WebdriverBrowser):
     def __init__(self, headless=True):
         logger.debug("Starting Selenium Browser : headless = %s", headless)
         self.options = Options()
         if headless:
             self.options.headless = True
 
-        webdriver.Firefox.__init__(self, options=self.options)
+        if driver_exec_path:
+            assert Path(driver_exec_path).exists(), 'Given executable path for webdriver does not exist.'
+            self.browser_service = Service(driver_exec_path)
+        else:
+            self.browser_service = None
+
+        WebdriverBrowser.__init__(self, options=self.options, service=self.browser_service)
 
     def restart(self):
         self.quit()
-        webdriver.Firefox.__init__(self, options=self.options)
+        WebdriverBrowser.__init__(self, options=self.options, service=self.browser_service)
 
     def get_url(self, url):
         logger.debug("get_url(browser, %s)", url)
